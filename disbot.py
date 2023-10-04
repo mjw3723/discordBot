@@ -1,9 +1,12 @@
 
+#Python version 3.8.0
 import yt_dlp as youtube_dl
 import discord
 from discord.ext import commands
+import asyncio
 import search
 import os
+import message as m
 TOKEN = os.environ.get("DISCORD_TOKEN")
 playlist = []
 infolist =[]
@@ -61,25 +64,16 @@ intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents,help_command = None)
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to Discord!')
+    print(f'{bot.user.name} 연결 완료!')
 @bot.event
 async def on_member_join(member):
     await member.create_dm()
     await member.dm_channel.send(
-        f'Hi {member.name}, welcome to my Discord server!'
+        f'안녕하세요. {member.name}, 환영합니다.!'
     )
 @bot.command()
 async def help(ctx):
-    embed = discord.Embed(title="봇 명령어", color=discord.Color.random())
-    embed.add_field(name='!입장\t봇 보이스채널 초대',value="", inline=False)
-    embed.add_field(name='!나가\t봇 보이스채널 퇴장',value="",  inline=False)
-    embed.add_field(name='!재생\t유튜브 노래 재생',value="",  inline=False)
-    embed.add_field(name='!다음\t다음 노래 재생',value="",  inline=False)
-    embed.add_field(name='!예약목록\t예약된 노래목록',value="",  inline=False)
-    embed.add_field(name='!소리\t 봇 소리 설정(0~100)',value="",  inline=False)
-    embed.add_field(name='!일시정지\t노래 일시정지',value="",  inline=False)
-    embed.add_field(name='!다시재생\t노래 다시재생',value="",  inline=False)
-    embed.add_field(name='!오토\t재생할 노래 없으면 봇이 자동으로 재생',value="",  inline=False)
+    embed = m.em.helpM()
     await ctx.send(embed=embed)
 @bot.command(name='입장')
 async def join(ctx):
@@ -91,12 +85,12 @@ async def join(ctx):
         await help(ctx)
         search.driver
     else:
-    	await ctx.sendctx.send("음성 채널에 유저가 존재하지 않습니다. 1명 이상 입장해 주세요.")
+    	await ctx.send("음성 채널에 유저가 존재하지 않습니다. 1명 이상 입장해 주세요.")
 
 @bot.command(name='나가')
 async def exit(ctx):
     await bot.voice_clients[0].disconnect()
-    embed = discord.Embed(title="봇 입장", color=discord.Color.random())
+    embed = discord.Embed(title="봇 퇴장", color=discord.Color.random())
     await ctx.channel.send(embed=embed)
     search.driver.close()
 
@@ -111,18 +105,13 @@ async def reserve(ctx, *args):
     infolist.append([title,name,imgurl])
     if len(playlist)==1:
         if ctx.voice_client.is_playing():
-            embed = discord.Embed(title="노래 예약", color=discord.Color.random())
-            embed.set_thumbnail(url=imgurl)
-            embed.add_field(name=title, value=name, inline=False)
-            embed.set_footer(text=f'신청자 : {ctx.author.display_name}님')
+            embed = m.em.reserveM(ctx,title,name,imgurl)
             return await ctx.send(embed=embed)
         else:
             await play_next(ctx)
         
     else:
-        embed = discord.Embed(title="노래 예약", color=discord.Color.random())
-        embed.add_field(name=title, value=name, inline=False)
-        embed.set_footer(text=f'신청자 : {ctx.author.display_name}님')   
+        embed = m.em.reserveM(ctx,title,name,imgurl) 
         await ctx.send(embed=embed)
 
 
@@ -140,10 +129,7 @@ async def play_next(ctx):
             bot.loop.create_task(play_next(ctx))
         
         ctx.voice_client.play(player, after=after_playing)
-        embed = discord.Embed(title="노래 시작", color=discord.Color.random())
-        embed.set_thumbnail(url=imgurl)
-        embed.add_field(name=title, value=name, inline=False) #player.title 사용가능
-        embed.set_footer(text=f'신청자 : {ctx.author.display_name}님')
+        embed = m.em.playM(ctx,title,name,imgurl)
         await ctx.send(embed=embed)
     else:
         if autoMode ==1 :
@@ -156,10 +142,7 @@ async def play_next(ctx):
                 bot.loop.create_task(play_next(ctx))
         
             ctx.voice_client.play(player, after=after_playing)
-            embed = discord.Embed(title="노래 시작", color=discord.Color.random())
-            embed.set_thumbnail(url=imgurl)
-            embed.add_field(name=title, value=name, inline=False) #player.title 사용가능
-            embed.set_footer(text=f'Auto모드 재생중')
+            embed = m.em.AutoM(title,name,imgurl)
             await ctx.send(embed=embed)
         else: 
             await bot.voice_clients[0].disconnect()
@@ -168,53 +151,60 @@ async def play_next(ctx):
 async def skip(ctx):
     if len(playlist)>0:
         if ctx.voice_client.is_playing():
-            ctx.voice_client.stop()
+            ctx.voice_client.pause()
         await play_next(ctx)
-    else:await ctx.send("다음 노래가 없습니다.")
+    else:
+        embed = discord.Embed(title="다음 노래가 없습니다.", color=discord.Color.random())
+        await ctx.send(embed=embed)
 @bot.command(name='예약목록')
 async def list(ctx):
-    i= 1;
-    embed = discord.Embed(title='예약목록', color=discord.Color.random())
-    for [title,name,imgurl] in infolist:
-        embed.add_field(name=f'{i}:{title}', value=name, inline=False)
-        i=i+1
-    await ctx.send(embed=embed)
+    if len(infolist)>0:
+        embed = m.em.listM(infolist)
+        await ctx.send(embed=embed)
+    else:
+        
+        await ctx.send(embed=embed)
 @bot.command(name='소리')
 async def volume(ctx, volume: int):
     """Changes the player's volume"""
  
     if ctx.voice_client is None:
-        return await ctx.send("Not connected to a voice channel.")
+        embed = discord.Embed(title=f"재생중이 아닙니다.", color=discord.Color.random())
+        return await ctx.send(embed=embed)
  
     ctx.voice_client.source.volume = volume / 100
-    embed = discord.Embed(title=f"소리 : {volume}%", color=discord.Color.random())
+    embed = m.em.volumeM(volume)
     await ctx.send(embed=embed)       
 @bot.command(name='일시정지')
 async def pause(ctx):
     try:
         ctx.voice_client.pause()
-        await ctx.send("음악을 일시정지 합니다.")
+        embed = m.em.pauseM()
+        await ctx.send(embed=embed)
     except:
-        await ctx.send("일시정지 에러")
+        embed = discord.Embed(title="일시정지 에러", color=discord.Color.random())
+        await ctx.send(embed=embed)
 @bot.command(name='다시재생')
 async def resume(ctx):
     try:
         ctx.voice_client.resume()
-        await ctx.send("음악을 다시 시작 합니다.")
+        embed = m.em.resumeM()
+        await ctx.send(embed=embed)
     except:
-        await ctx.send("다시재생 에러")
+        embed = discord.Embed(title="다시재생 에러", color=discord.Color.random())
+        await ctx.send(embed=embed)
 @bot.command(name='오토')
 async def auto(ctx):
     global autoMode
     global autolist
     if autoMode == 0:
-        embed = discord.Embed(title="Auto모드 ON", color=discord.Color.random())
-        await ctx.send(embed=embed)
+        autolist = search.auto()
+        embed = m.em.AutoOnOffM(autoMode)
         autoMode = 1
-        autolist = search.auto() 
-    else: 
-        autoMode = 0
-        embed = discord.Embed(title="Auto모드 OFF", color=discord.Color.random())
+        await ctx.send(embed=embed)
+    else:
+        autoMode = 0 
+        embed = m.em.AutoOnOffM(autoMode)
         await ctx.send(embed=embed)
 
                 
