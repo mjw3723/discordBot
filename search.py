@@ -1,7 +1,5 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
-from bs4 import BeautifulSoup
-import requests
 import time
 def chromedriver():
     try:
@@ -47,9 +45,6 @@ def getUrl(mode,query):
         imgLink = link
         re1 = imgLink.split('=')
         re2 = re1[1].split('&')
-        musicTime = i.find(
-            class_='yt-simple-endpoint style-scope ytd-video-renderer', id='video-title')['aria-label']
-        print(musicTime)
         imgurl = f'https://img.youtube.com/vi/{re2[0]}/0.jpg'
         link = 'https://www.youtube.com'+link
         imgLink = f'https://img.youtube.com/vi/{link[32:]}/0.jpg'
