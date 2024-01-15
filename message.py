@@ -3,15 +3,15 @@ import discord
 class em:
     def helpM():
         embed = discord.Embed(title="봇 명령어", color=discord.Color.random())
-        embed.add_field(name='!입장\t봇 보이스채널 초대',value="", inline=False)
-        embed.add_field(name='!나가\t봇 보이스채널 퇴장',value="",  inline=False)
-        embed.add_field(name='!재생\t유튜브 노래 재생',value="",  inline=False)
-        embed.add_field(name='!다음\t다음 노래 재생',value="",  inline=False)
-        embed.add_field(name='!예약목록\t예약된 노래목록',value="",  inline=False)
-        embed.add_field(name='!소리\t 봇 소리 설정(0~100)',value="",  inline=False)
-        embed.add_field(name='!일시정지\t노래 일시정지',value="",  inline=False)
-        embed.add_field(name='!다시재생\t노래 다시재생',value="",  inline=False)
-        embed.add_field(name='!오토\t재생할 노래 없으면 봇이 자동으로 재생',value="",  inline=False)
+        embed.add_field(name='!입장  \t\t봇 보이스채널 초대',value="", inline=False)
+        embed.add_field(name='!나가  \t\t봇 보이스채널 퇴장',value="",  inline=False)
+        embed.add_field(name='!재생\t(노래제목)\t유튜브 노래 재생',value="",  inline=False)
+        embed.add_field(name='!다음  \t\t다음 노래 재생',value="",  inline=False)
+        embed.add_field(name='!예약목록\t\t예약된 노래목록',value="",  inline=False)
+        embed.add_field(name='!소리  \t\t 봇 소리 설정(0~100)',value="",  inline=False)
+        embed.add_field(name='!일시정지\t\t노래 일시정지',value="",  inline=False)
+        embed.add_field(name='!다시재생\t\t노래 다시재생',value="",  inline=False)
+        embed.add_field(name='!오토  \t\t재생할 노래 없으면 자동으로 재생',value="",  inline=False)
         return embed
     
     def reserveM(ctx,title,name,imgurl):
@@ -63,3 +63,4 @@ class em:
             embed.set_thumbnail(url=imgurl)
             i=i+1
         return embed
+    

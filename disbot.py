@@ -7,16 +7,19 @@ import asyncio
 import search
 import os
 import message as m
+import time
+
 TOKEN = os.environ.get("DISCORD_TOKEN")
-playlist = []
-infolist =[]
-autolist = []
-autoMode = 0
+playlist = [] # url list
+infolist =[]  # title,name,imgurl list
+autolist = [] # auto url list
+autoMode = 0  # 0 Off 1 ON
 # Suppress noise about console usage from errors
 youtube_dl.utils.bug_reports_message = lambda: ''
  
  
 ytdl_format_options = {
+    """
     'format': 'bestaudio/best',
     'outtmpl': '%(extractor)s-%(id)s-%(title)s.%(ext)s',
     'restrictfilenames': True,
@@ -28,6 +31,16 @@ ytdl_format_options = {
     'no_warnings': True,
     'default_search': 'auto',
     'source_address': '0.0.0.0',  # bind to ipv4 since ipv6 addresses cause issues sometimes
+    """
+    'quiet': False,
+    'default_search': 'ytsearch',
+    'format': 'bestaudio/best',
+    'postprocessors': [{
+        'key': 'FFmpegExtractAudio',
+        'preferredcodec': 'mp3',
+        'preferredquality': '192',
+    }],
+    'youtube_include_dash_manifest': False,
 }
  
 ffmpeg_options = {
@@ -62,6 +75,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix='!', intents=intents,help_command = None)
+
 @bot.event
 async def on_ready():
     print(f'{bot.user.name} 연결 완료!')
@@ -83,37 +97,45 @@ async def join(ctx):
         embed = discord.Embed(title="봇 입장", color=discord.Color.random())
         await ctx.channel.send(embed=embed)
         await help(ctx)
-        search.driver
     else:
-    	await ctx.send("음성 채널에 유저가 존재하지 않습니다. 1명 이상 입장해 주세요.")
+        await ctx.send("음성 채널에 유저가 존재하지 않습니다. 1명 이상 입장해 주세요.")
 
 @bot.command(name='나가')
 async def exit(ctx):
     await bot.voice_clients[0].disconnect()
     embed = discord.Embed(title="봇 퇴장", color=discord.Color.random())
     await ctx.channel.send(embed=embed)
-    search.driver.close()
+    
+    global autoMode
+    if(autoMode==1):
+        autoMode = 0
+    playlist.clear()
+    infolist.clear()
+    autolist.clear()
 
 
 @bot.command(name='재생')
 async def reserve(ctx, *args):
-    """노래를 예약합니다."""
-    global playlist
-    parameter = ' '.join(args)
-    title,name,url,imgurl = search.getUrl(1, parameter)
-    playlist.append(url)
-    infolist.append([title,name,imgurl])
-    if len(playlist)==1:
-        if ctx.voice_client.is_playing():
-            embed = m.em.reserveM(ctx,title,name,imgurl)
-            return await ctx.send(embed=embed)
+    voice_channel = ctx.guild.voice_client
+    if voice_channel and voice_channel.is_connected():
+        """노래를 예약합니다."""
+        global playlist
+        parameter = ' '.join(args)
+        title,name,url,imgurl = search.getUrl(1, parameter)
+        playlist.append(url)
+        infolist.append([title,name,imgurl])
+        if len(playlist)==1:
+            if ctx.voice_client.is_playing():
+                embed = m.em.reserveM(ctx,title,name,imgurl)
+                return await ctx.send(embed=embed)
+            else:
+                await play_next(ctx)
+            
         else:
-            await play_next(ctx)
-        
-    else:
-        embed = m.em.reserveM(ctx,title,name,imgurl) 
-        await ctx.send(embed=embed)
-
+            embed = m.em.reserveM(ctx,title,name,imgurl) 
+            await ctx.send(embed=embed)
+    else:        
+        await ctx.send("음성 채널에 봇이 존재하지 않습니다. 입장시켜주세요.")
 
 async def play_next(ctx):
     global playlist
@@ -131,6 +153,8 @@ async def play_next(ctx):
         ctx.voice_client.play(player, after=after_playing)
         embed = m.em.playM(ctx,title,name,imgurl)
         await ctx.send(embed=embed)
+        ctx.voice_client.source.volume = 50 / 100
+
     else:
         if autoMode ==1 :
             title,name,url,imgurl = autolist.pop(0)
@@ -144,12 +168,16 @@ async def play_next(ctx):
             ctx.voice_client.play(player, after=after_playing)
             embed = m.em.AutoM(title,name,imgurl)
             await ctx.send(embed=embed)
+            ctx.voice_client.source.volume = 50 / 100
         else: 
             await bot.voice_clients[0].disconnect()
+            await bot.voice_clients[0].cleanup()
+            playlist.clear()
+            
             search.driver.close()
 @bot.command(name='다음')   
 async def skip(ctx):
-    if len(playlist)>0:
+    if len(playlist)>0 or (autoMode == 1 and len(autolist)>0):
         if ctx.voice_client.is_playing():
             ctx.voice_client.pause()
         await play_next(ctx)
@@ -162,16 +190,16 @@ async def list(ctx):
         embed = m.em.listM(infolist)
         await ctx.send(embed=embed)
     else:
-        
+        embed = discord.Embed(title="예약된 노래가 없습니다.", color=discord.Color.random())
         await ctx.send(embed=embed)
 @bot.command(name='소리')
 async def volume(ctx, volume: int):
     """Changes the player's volume"""
- 
+
     if ctx.voice_client is None:
         embed = discord.Embed(title=f"재생중이 아닙니다.", color=discord.Color.random())
         return await ctx.send(embed=embed)
- 
+
     ctx.voice_client.source.volume = volume / 100
     embed = m.em.volumeM(volume)
     await ctx.send(embed=embed)       
@@ -182,7 +210,7 @@ async def pause(ctx):
         embed = m.em.pauseM()
         await ctx.send(embed=embed)
     except:
-        embed = discord.Embed(title="일시정지 에러", color=discord.Color.random())
+        embed = discord.Embed(title="일시정지할 노래가 없습니다.", color=discord.Color.random())
         await ctx.send(embed=embed)
 @bot.command(name='다시재생')
 async def resume(ctx):
@@ -191,7 +219,7 @@ async def resume(ctx):
         embed = m.em.resumeM()
         await ctx.send(embed=embed)
     except:
-        embed = discord.Embed(title="다시재생 에러", color=discord.Color.random())
+        embed = discord.Embed(title="다시 재생할 노래가 없습니다.", color=discord.Color.random())
         await ctx.send(embed=embed)
 @bot.command(name='오토')
 async def auto(ctx):
@@ -209,3 +237,4 @@ async def auto(ctx):
 
                 
 bot.run(TOKEN)
+

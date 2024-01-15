@@ -1,15 +1,23 @@
 from bs4 import BeautifulSoup
 from selenium import webdriver
-
+from bs4 import BeautifulSoup
+import requests
+import time
 def chromedriver():
+    try:
+        driver.quit()
+    except Exception as e:
+        print(e)
+        
     option = webdriver.ChromeOptions()
     option.add_argument('headless')
-    option.add_argument('--disable-gpu')
+    #option.add_argument('--disable-gpu')
     option.add_argument('lang=ko_KR')
     driver = webdriver.Chrome(options=option)
     return driver
 driver = chromedriver()
 def getUrl(mode,query):
+    start = time.time()
     global driver
     #option = webdriver.ChromeOptions()
     #option.add_argument('headless')
@@ -26,8 +34,6 @@ def getUrl(mode,query):
     soup = BeautifulSoup(html, 'lxml') 
     tags = soup.find_all('ytd-video-renderer',
                          class_='style-scope ytd-item-section-renderer')
-   
-    
     rank = 1
     for i in tags:
         title = i.find(
@@ -41,15 +47,15 @@ def getUrl(mode,query):
         imgLink = link
         re1 = imgLink.split('=')
         re2 = re1[1].split('&')
-        
+        musicTime = i.find(
+            class_='yt-simple-endpoint style-scope ytd-video-renderer', id='video-title')['aria-label']
+        print(musicTime)
         imgurl = f'https://img.youtube.com/vi/{re2[0]}/0.jpg'
         link = 'https://www.youtube.com'+link
         imgLink = f'https://img.youtube.com/vi/{link[32:]}/0.jpg'
         rank += 1
-        print(link)
         if rank == max:break
     #driver.close()
-
     return title,name,link,imgurl
 
 def auto():
@@ -81,8 +87,6 @@ def auto():
         imgLink = link
         re1 = imgLink.split('=')
         re2 = re1[1].split('&')
-        print(re1)
-        print(re2)
         imgurl = f'https://img.youtube.com/vi/{re2[0]}/0.jpg'
         link = 'https://www.youtube.com'+link
         imgLink = f'https://img.youtube.com/vi/{link[32:]}/0.jpg'
@@ -93,7 +97,7 @@ def auto():
     return autoList
 
 
-
+getUrl(1,'비의랩소디')
 
 
 
